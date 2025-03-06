@@ -1,4 +1,4 @@
-import uvicorn 
+import uvicorn
 from app import config
 
 if __name__ == "__main__":
