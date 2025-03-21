@@ -1,10 +1,31 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
-from app.core.config import config
-from app.api.routes import router
+from app import router, engine, Base
+from app.database import models
 
-app = FastAPI(title="Mastercert Chatbot API")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        yield
+    except Exception as e:
+        logger.error(f"An error occurred during startup: {e}")
+        yield
+
+
+app = FastAPI(
+    title="Mastcert Chatbot API",
+    lifespan=lifespan
+)
 
 app.add_middleware(
     CORSMiddleware,
