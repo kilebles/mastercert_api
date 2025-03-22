@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.services import openai_service
-from app.core.dependensies import get_db_session, get_gpt_service
+from app.database.repository import search_similar_knowledge
+from app.core.dependencies import get_db_session, get_gpt_service
 
 router = APIRouter()
 
 
 class AskRequest(BaseModel):
     message: str
-    
+
 
 class AskResponse(BaseModel):
     response: str
@@ -21,10 +22,22 @@ async def root():
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask(data: AskRequest, gpt=Depends(get_gpt_service), db=Depends(get_db_session)):
+async def ask(
+    data: AskRequest,
+    gpt=Depends(get_gpt_service),
+    db: AsyncSession = Depends(get_db_session),
+):
     user_message = data.message
+
     try:
-        gpt_reply = await openai_service.generate_gpt_response(user_message)
+        user_embedding = await gpt.get_embedding(user_message)
+        similar_records = await search_similar_knowledge(user_embedding, db, limit=3)
+        context = "\n\n".join(
+            f"Q: {row['question']}\nA: {row['answer']}" for row in similar_records
+        ) if similar_records else ""
+        response = await gpt.generate_gpt_response(user_message, context=context)
+
+        return {"response": response}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    return {"response": gpt_reply}
+        raise HTTPException(status_code=500, detail=f"GPT error: {e}")
