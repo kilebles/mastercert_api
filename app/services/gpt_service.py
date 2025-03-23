@@ -1,7 +1,7 @@
 import httpx
-
 from openai import AsyncOpenAI
 from langdetect import detect
+import re
 
 from app.core.config import config
 
@@ -12,20 +12,61 @@ class OpenAIService:
             api_key=config.OPENAI_API_KEY,
             http_client=httpx.AsyncClient(),
         )
-    
+        
         self.system_prompt = config.SYSTEM_PROMPT
+
+        self.known_greetings = {
+            "hi": "en",
+            "hello": "en",
+            "hey": "en",
+            "yo": "en",
+
+            "привет": "ru",
+            "здравствуй": "ru",
+            "здравствуйте": "ru",
+            
+        }
 
     async def generate_gpt_response(self, user_message: str, context: str = "") -> str:
         try:
-            try:
-                lang = detect(user_message)
-            except Exception:
-                lang = "unknown"
+            user_message_clean = user_message.strip().lower()
 
-            language_instruction = "Respond in the same language as the question."
-            full_prompt = f"{self.system_prompt}\n{language_instruction}"
+            
+            if user_message_clean in self.known_greetings:
+                lang = self.known_greetings[user_message_clean]
+            else:
+                
+                if len(user_message_clean) <= 3:
+                    
+                    if re.search(r'[а-яё]', user_message_clean):
+                        lang = "ru"
+                    else:
+                        lang = "en"
+                else:
+                    
+                    try:
+                        detected = detect(user_message_clean)
+                    except Exception:
+                        detected = "unknown"
 
-            messages = [{"role": "system", "content": full_prompt}]
+                    if detected not in ["ru", "en"]:
+                        
+                        if re.search(r'[а-яё]', user_message_clean, re.IGNORECASE):
+                            lang = "ru"
+                        else:
+                            lang = "en"
+                    else:
+                        lang = detected
+
+            language_instruction = (
+                f"The user is speaking in {lang}. You must respond in {lang}."
+            )
+
+            full_prompt = f"{self.system_prompt}\n\n{language_instruction}"
+
+            messages = [
+                {"role": "system", "content": full_prompt},
+            ]
 
             if context:
                 messages.append({"role": "user", "content": f"Контекст из базы знаний:\n{context}"})
@@ -44,7 +85,6 @@ class OpenAIService:
                     full_response += chunk.choices[0].delta.content
 
             return full_response
-
         except Exception as e:
             return f"Error: {str(e)}"
         
@@ -58,6 +98,6 @@ class OpenAIService:
             return response.data[0].embedding
         except Exception as e:
             raise RuntimeError(f"Error while get embedding: {e}")
-        
+
 
 openai_service = OpenAIService()
