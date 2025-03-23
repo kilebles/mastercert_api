@@ -1,7 +1,8 @@
-import httpx
-from openai import AsyncOpenAI
-from langdetect import detect
 import re
+import httpx
+
+from langdetect import detect
+from openai import AsyncOpenAI
 
 from app.core.config import config
 
@@ -20,11 +21,13 @@ class OpenAIService:
             "hello": "en",
             "hey": "en",
             "yo": "en",
-
+            "helo": "en",
+            
+            "прив": "ru",
+            "ку": "ru",
             "привет": "ru",
             "здравствуй": "ru",
             "здравствуйте": "ru",
-            
         }
 
     async def generate_gpt_response(self, user_message: str, context: str = "") -> str:
@@ -36,7 +39,16 @@ class OpenAIService:
                 lang = self.known_greetings[user_message_clean]
             else:
                 
-                if len(user_message_clean) <= 3:
+                try:
+                    detected = detect(user_message_clean)  
+                except Exception:
+                    detected = "unknown"
+
+                if detected != "unknown":
+                    detected = detected.split("-")[0].lower()  
+
+                
+                if len(user_message_clean) <= 2 or detected == "unknown":
                     
                     if re.search(r'[а-яё]', user_message_clean):
                         lang = "ru"
@@ -44,24 +56,9 @@ class OpenAIService:
                         lang = "en"
                 else:
                     
-                    try:
-                        detected = detect(user_message_clean)
-                    except Exception:
-                        detected = "unknown"
-
-                    if detected not in ["ru", "en"]:
-                        
-                        if re.search(r'[а-яё]', user_message_clean, re.IGNORECASE):
-                            lang = "ru"
-                        else:
-                            lang = "en"
-                    else:
-                        lang = detected
-
-            language_instruction = (
-                f"The user is speaking in {lang}. You must respond in {lang}."
-            )
-
+                    lang = detected
+            
+            language_instruction = f"The user is speaking in {lang}. You must respond in {lang}."
             full_prompt = f"{self.system_prompt}\n\n{language_instruction}"
 
             messages = [
@@ -74,7 +71,7 @@ class OpenAIService:
             messages.append({"role": "user", "content": user_message})
 
             stream = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=messages,
                 stream=True,
             )
