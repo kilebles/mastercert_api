@@ -21,6 +21,10 @@ class Config:
     
     REDIS_HOST = os.getenv('REDIS_HOST')
     REDIS_PORT = os.getenv('REDIS_PORT')
+    
+    EMAIL_ADRESS = os.getenv('EMAIL_ADRESS')
+    SMTP_USER = os.getenv("SMTP_USER")
+    SMTP_PASS = os.getenv("SMTP_PASS")
 
     @property
     def DATABASE_URL(self):
