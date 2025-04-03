@@ -1,10 +1,49 @@
 import re
 import httpx
+import logging
 
 from langdetect import detect
 from openai import AsyncOpenAI
 
 from app.core.config import config
+
+logger = logging.getLogger(__name__)
+
+
+def detect_language(text: str) -> str:
+    text_clean = text.strip().lower()
+
+    known_greetings = {
+        "hi": "en", "hello": "en", "hey": "en", "yo": "en", "helo": "en",
+        "прив": "ru", "ку": "ru", "привет": "ru", "здравствуй": "ru", "здравствуйте": "ru",
+    }
+
+    if text_clean in known_greetings:
+        return known_greetings[text_clean]
+
+    if re.search(r"[а-яё]", text_clean, re.IGNORECASE):
+        return "ru"
+    
+    if re.search(r"[ґєії]", text_clean, re.IGNORECASE):
+        return "uk"
+
+    try:
+        detected = detect(text_clean)
+        detected = detected.split("-")[0].lower()
+    except Exception:
+        detected = "unknown"
+
+    if detected == "unknown" or len(text_clean) <= 3:
+        if re.search(r"[а-яё]", text_clean, re.IGNORECASE):
+            return "ru"
+        else:
+            return "en"
+
+    if detected in {"mk", "bg", "sr"}:
+        if re.search(r"[а-яё]", text_clean, re.IGNORECASE):
+            return "ru"
+
+    return detected
 
 
 class OpenAIService:
@@ -15,64 +54,68 @@ class OpenAIService:
         )
         self.system_prompt = config.SYSTEM_PROMPT
 
-        self.known_greetings = {
-            "hi": "en",
-            "hello": "en",
-            "hey": "en",
-            "yo": "en",
-            "helo": "en",
-            "прив": "ru",
-            "ку": "ru",
-            "привет": "ru",
-            "здравствуй": "ru",
-            "здравствуйте": "ru",
-        }
-
     async def generate_gpt_response(self, conversation: list[dict], context: str = "") -> str:
         try:
-            
             last_user_message = ""
             for msg in reversed(conversation):
                 if msg["role"] == "user":
-                    last_user_message = msg["content"]
+                    text = msg["content"].strip()
+                    if (
+                        len(text) < 5 or
+                        re.fullmatch(r"[^@]+@[^@]+\.[^@]+", text) or
+                        re.fullmatch(r"\+?\d[\d\s\-\(\)]+", text)
+                    ):
+                        continue
+                    last_user_message = text
                     break
 
-            user_message_clean = last_user_message.strip().lower()
-            
-            if user_message_clean in self.known_greetings:
-                lang = self.known_greetings[user_message_clean]
+            if not last_user_message:
+                logger.warning("⚠️ No suitable user message found for language detection. Defaulting to English.")
+                lang = "en"
             else:
-                try:
-                    detected = detect(user_message_clean)
-                except Exception:
-                    detected = "unknown"
+                lang = detect_language(last_user_message)
 
-                if detected != "unknown":
-                    detected = detected.split("-")[0].lower()
+            lang_verbose_map = {
+                "ru": "Russian",
+                "en": "English",
+                "uk": "Ukrainian",
+                "be": "Belarusian",
+                "kk": "Kazakh",
+                "uz": "Uzbek",
+                "zh": "Chinese",
+                "de": "German",
+                "fr": "French",
+                "es": "Spanish",
+                "it": "Italian",
+                "pl": "Polish",
+                "ro": "Romanian",
+                "bg": "Bulgarian",
+                "sr": "Serbian",
+                "mk": "Macedonian",
+            }
+            lang_verbose = lang_verbose_map.get(lang, "English")
 
-                if len(user_message_clean) <= 2 or detected == "unknown":
-                    
-                    if re.search(r'[а-яё]', user_message_clean):
-                        lang = "ru"
-                    else:
-                        lang = "en"
-                else:
-                    lang = detected
+            language_instruction = (
+                f"The current user language is: {lang_verbose}.\n"
+                "You must respond in the same language."
+            )
+            knowledge_block = (
+                f"\n\nUse the following knowledge base when relevant:\n{context}"
+                if context else ""
+            )
 
-            language_instruction = f"The user is speaking in {lang}. You must respond in {lang}."
-            base_prompt = f"{self.system_prompt}\n\n{language_instruction}"
+            base_prompt = f"{self.system_prompt.strip()}\n\n{language_instruction}{knowledge_block}"
 
-            if context:
-                base_prompt += f"\n\nAdditional knowledge base context:\n{context}"
+            logger.info("🔎 Detected language: %s (%s)", lang, lang_verbose)
+            logger.info("🧠 SYSTEM PROMPT (first 800 chars):\n%s", base_prompt[:800])
 
             messages = [{"role": "system", "content": base_prompt}]
-
-            for msg in conversation:   
+            for msg in conversation:
                 messages.append({
                     "role": msg["role"],
                     "content": msg["content"]
                 })
-            
+
             stream = await self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=messages,
@@ -86,7 +129,9 @@ class OpenAIService:
                     full_response += chunk.choices[0].delta.content
 
             return full_response
+
         except Exception as e:
+            logger.exception("❌ Error during GPT response generation")
             return f"Error: {str(e)}"
 
     async def get_embedding(self, text: str) -> list[float]:

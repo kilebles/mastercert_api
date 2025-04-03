@@ -22,9 +22,9 @@ async def send_contact_info_email(chat_id: str, messages: list[dict]):
 
     await send(
         msg,
-        hostname="smtp.yandex.ru",
+        hostname="smtp.gmail.com",
         port=587,
-        username=os.getenv("SMTP_USER"),
-        password=os.getenv("SMTP_PASS"),
+        username=config.SMTP_USER,
+        password=config.SMTP_PASS,
         start_tls=True,
     )
