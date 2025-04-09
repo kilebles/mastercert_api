@@ -22,12 +22,7 @@ class OpenAIService:
         context: str = "",
         lang: str = "en"
     ) -> str:
-        """
-        conversation: [{'role': 'user', 'content': ...}, {'role': 'assistant', ...}, ...]
-        lang: язык, на котором следует отвечать
-        """
         try:
-            # словарь для отображения к полному названию (необязательно)
             lang_verbose_map = {
                 "ru": "Russian",
                 "en": "English",
@@ -63,7 +58,7 @@ class OpenAIService:
             logger.info("🧠 SYSTEM PROMPT (first 800 chars):\n%s", base_prompt[:800])
 
             messages = [{"role": "system", "content": base_prompt}]
-            # Добавляем всю историю
+
             messages.extend(conversation)
 
             stream = await self.client.chat.completions.create(
