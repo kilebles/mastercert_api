@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.services.email_service import send_contact_info_email
-from app.database.repository import search_similar_knowledge
+from app.database.repository import search_similar_knowledge, save_knowledge_record
 from app.services.chat_memory import get_history, add_to_history
 from app.core.dependencies import get_db_session, get_gpt_service, get_redis_client
 from app.services.language_detection import detect_language_with_fallback
-from app.database.repository import save_knowledge_record
+
 
 router = APIRouter()
 
@@ -52,11 +52,7 @@ async def ask(
     await redis.set(f"chat_language:{chat_id}", new_lang)
     await add_to_history(chat_id, "user", user_message, redis)
     
-    try:
-        await save_knowledge_record(user_message, response_text, db, gpt)
-    except Exception:
-        traceback.print_exc()
-
+    
     history = await get_history(chat_id, redis)
     user_embedding = await gpt.get_embedding(user_message)
     similar_records = await search_similar_knowledge(user_embedding, db, limit=3)
@@ -72,6 +68,11 @@ async def ask(
     )
 
     await add_to_history(chat_id, "assistant", response_text, redis)
+    
+    try:
+        await save_knowledge_record(user_message, response_text, db, gpt)
+    except Exception:
+        traceback.print_exc()
 
     if contains_contact_info(user_message):
         recent_messages = history[-10:]

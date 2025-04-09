@@ -12,7 +12,6 @@ class Config:
 
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-        # Загружаем system_prompt из файла, если указан
         prompt_file = os.getenv("SYSTEM_PROMPT_FILE", "system_prompt.txt")
         if os.path.exists(prompt_file):
             with open(prompt_file, "r", encoding="utf-8") as f:
