@@ -1,0 +1,28 @@
+[project]
+name = "pervostroy_api"
+version = "0.1.0"
+description = ""
+authors = [{ name = "Elisey", email = "eliseyblajen@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.poetry]
+packages = [{ include = "app" }]
+
+[tool.poetry.dependencies]
+uvicorn = "^0.35.0"
+fastapi = "^0.116.0"
+redis = "^6.2.0"
+httpx = "^0.28.1"
+openai = "^1.95.0"
+sqlalchemy = "^2.0.41"
+pydantic-settings = "^2.10.1"
+pgvector = "^0.4.1"
+asyncpg = "^0.30.0"
+
+[tool.poetry.group.dev.dependencies]
+alembic = "^1.16.4"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

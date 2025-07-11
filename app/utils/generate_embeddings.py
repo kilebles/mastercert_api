@@ -6,7 +6,7 @@ from openai import AsyncOpenAI
 
 from app.database.db import SessionLocal
 from app.database.models import KnowledgeBase
-from app.core.config import config
+from app.core.settings import config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

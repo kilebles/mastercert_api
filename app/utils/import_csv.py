@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 async def load_csv_to_db():
     async with SessionLocal() as session:
-        with open("app/data.csv", newline='', encoding='utf-8') as csvfile:
+        with open("data.csv", newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
 
             for row in reader:

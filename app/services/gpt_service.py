@@ -1,9 +1,8 @@
-import re
 import httpx
 import logging
 
 from openai import AsyncOpenAI
-from app.core.config import config
+from app.core.settings import config
 
 logger = logging.getLogger(__name__)
 
@@ -19,46 +18,16 @@ class OpenAIService:
     async def generate_gpt_response(
         self,
         conversation: list[dict],
-        context: str = "",
-        lang: str = "en"
+        context: str = ""
     ) -> str:
         try:
-            lang_verbose_map = {
-                "ru": "Russian",
-                "en": "English",
-                "uk": "Ukrainian",
-                "be": "Belarusian",
-                "kk": "Kazakh",
-                "uz": "Uzbek",
-                "zh": "Chinese",
-                "de": "German",
-                "fr": "French",
-                "es": "Spanish",
-                "it": "Italian",
-                "pl": "Polish",
-                "ro": "Romanian",
-                "bg": "Bulgarian",
-                "sr": "Serbian",
-                "mk": "Macedonian",
-            }
-            lang_verbose = lang_verbose_map.get(lang, "English")
-
-            language_instruction = (
-                f"The current user language is: {lang_verbose}.\n"
-                "You must respond in the same language."
-            )
             knowledge_block = (
                 f"\n\nUse the following knowledge base when relevant:\n{context}"
                 if context else ""
             )
 
-            base_prompt = f"{self.system_prompt.strip()}\n\n{language_instruction}{knowledge_block}"
-
-            logger.info("🔎 Using language: %s (%s)", lang, lang_verbose)
-            logger.info("🧠 SYSTEM PROMPT (first 800 chars):\n%s", base_prompt[:800])
-
+            base_prompt = f"{self.system_prompt.strip()}{knowledge_block}"
             messages = [{"role": "system", "content": base_prompt}]
-
             messages.extend(conversation)
 
             stream = await self.client.chat.completions.create(
@@ -84,12 +53,13 @@ class OpenAIService:
         try:
             response = await self.client.embeddings.create(
                 input=text,
-                model="text-embedding-ada-002",
+                model="text-embedding-3-small",
                 encoding_format="float"
             )
             return response.data[0].embedding
         except Exception as e:
-            raise RuntimeError(f"Error while get embedding: {e}")
+            logger.exception("❌ Error generating embedding")
+            raise
 
 
 openai_service = OpenAIService()
