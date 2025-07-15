@@ -21,10 +21,7 @@ class OpenAIService:
         context: str = ""
     ) -> str:
         try:
-            knowledge_block = (
-                f"\n\nUse the following knowledge base when relevant:\n{context}"
-                if context else ""
-            )
+            knowledge_block = f"\n\n{context}" if context else ""
 
             base_prompt = f"{self.system_prompt.strip()}{knowledge_block}"
             messages = [{"role": "system", "content": base_prompt}]

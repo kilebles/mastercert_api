@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str
 
-    SYSTEM_PROMPT_FILE: str = "system_prompt.txt"
+    SYSTEM_PROMPT_FILE: str = "app/system_prompt.txt"
     SYSTEM_PROMPT: str = ""
 
     model_config = SettingsConfigDict(
@@ -30,17 +30,18 @@ class Settings(BaseSettings):
         env_prefix=""
     )
 
-    def __post_init_post_parse__(self):
-        try:
-            prompt_path = Path(self.SYSTEM_PROMPT_FILE)
-            if prompt_path.is_file():
-                content = prompt_path.read_text(encoding="utf-8").strip()
-                object.__setattr__(self, "SYSTEM_PROMPT", content)
-                logger.info("Системный промпт успешно загружен")
-            else:
-                logger.warning(f"Файл {self.SYSTEM_PROMPT_FILE} не найден.")
-        except Exception as e:
-            logger.warning(f"Ошибка при загрузке system_prompt.txt: {e}")
+
+def load_system_prompt(settings: Settings) -> Settings:
+    try:
+        prompt_path = Path(settings.SYSTEM_PROMPT_FILE)
+        if prompt_path.is_file():
+            settings.SYSTEM_PROMPT = prompt_path.read_text(encoding="utf-8").strip()
+            logger.info("Системный промпт успешно загружен.")
+        else:
+            logger.warning(f"Файл {settings.SYSTEM_PROMPT_FILE} не найден.")
+    except Exception as e:
+        logger.warning(f"Ошибка при загрузке system_prompt.txt: {e}")
+    return settings
 
 
-config = Settings()
+config = load_system_prompt(Settings())
