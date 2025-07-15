@@ -1,5 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -27,13 +30,17 @@ class Settings(BaseSettings):
         env_prefix=""
     )
 
-    def __init__(self, **data):
-        super().__init__(**data)
-        prompt_path = Path(self.SYSTEM_PROMPT_FILE)
-        if prompt_path.exists():
-            self.SYSTEM_PROMPT = prompt_path.read_text(encoding="utf-8")
-        else:
-            self.SYSTEM_PROMPT = ""
+    def __post_init_post_parse__(self):
+        try:
+            prompt_path = Path(self.SYSTEM_PROMPT_FILE)
+            if prompt_path.is_file():
+                content = prompt_path.read_text(encoding="utf-8").strip()
+                object.__setattr__(self, "SYSTEM_PROMPT", content)
+                logger.info("Системный промпт успешно загружен")
+            else:
+                logger.warning(f"Файл {self.SYSTEM_PROMPT_FILE} не найден.")
+        except Exception as e:
+            logger.warning(f"Ошибка при загрузке system_prompt.txt: {e}")
 
 
 config = Settings()

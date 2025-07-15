@@ -52,9 +52,4 @@ async def ask(
 
     await add_to_history(chat_id, "assistant", response_text, redis)
 
-    try:
-        await save_knowledge_record(user_message, response_text, db, gpt)
-    except Exception:
-        traceback.print_exc()
-
     return {"response": response_text}

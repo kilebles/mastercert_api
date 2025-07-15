@@ -30,6 +30,9 @@ class OpenAIService:
             messages = [{"role": "system", "content": base_prompt}]
             messages.extend(conversation)
 
+            logger.warning("=== SYSTEM PROMPT ===")
+            logger.warning(base_prompt[:1000])
+
             stream = await self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=messages,
