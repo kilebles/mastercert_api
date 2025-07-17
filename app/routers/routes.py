@@ -1,3 +1,4 @@
+import logging
 import traceback
 
 from pydantic import BaseModel
@@ -7,6 +8,12 @@ from fastapi import APIRouter, Depends
 from app.database.repository import search_similar_knowledge, save_knowledge_record
 from app.services.chat_memory import clear_history, get_history, add_to_history
 from app.core.dependencies import get_db_session, get_gpt_service, get_redis_client
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -45,10 +52,20 @@ async def ask(
         for row in similar_records
     ) if similar_records else ""
 
+    logger.warning("=== REDIS HISTORY ===")
+    for m in history:
+        logger.warning(f"{m['role']}: {m['content']}")
+
+    logger.warning("=== CONTEXT FROM EMBEDDING ===")
+    logger.warning(context)
+
     response_text = await gpt.generate_gpt_response(
         history,
         context=context,
     )
+
+    logger.warning("=== GPT RESPONSE ===")
+    logger.warning(response_text)
 
     await add_to_history(chat_id, "assistant", response_text, redis)
 
@@ -57,5 +74,6 @@ async def ask(
 
 @router.post("/clear")
 async def clear_chat(data: AskRequest, redis=Depends(get_redis_client)):
+    logger.info(f"Clearing Redis history for chat_id={data.chat_id}")
     await clear_history(data.chat_id, redis)
     return {"status": "ok"}
