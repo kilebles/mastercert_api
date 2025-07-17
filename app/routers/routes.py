@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends
 
 from app.database.repository import search_similar_knowledge, save_knowledge_record
-from app.services.chat_memory import get_history, add_to_history
+from app.services.chat_memory import clear_history, get_history, add_to_history
 from app.core.dependencies import get_db_session, get_gpt_service, get_redis_client
 
 router = APIRouter()
@@ -53,3 +53,9 @@ async def ask(
     await add_to_history(chat_id, "assistant", response_text, redis)
 
     return {"response": response_text}
+
+
+@router.post("/clear")
+async def clear_chat(data: AskRequest, redis=Depends(get_redis_client)):
+    await clear_history(data.chat_id, redis)
+    return {"status": "ok"}
