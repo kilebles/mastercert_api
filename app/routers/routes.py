@@ -48,7 +48,7 @@ async def ask(
 
     await add_to_history(chat_id, "user", user_message, redis)
 
-    history = await get_history(chat_id, redis)
+    history = await get_history(chat_id, redis, limit=10)
     user_embedding = await gpt.get_embedding(user_message)
     similar_records = await search_similar_knowledge(user_embedding, db, limit=3)
     context = "\n\n".join(

@@ -17,9 +17,9 @@ async def add_to_history(chat_id: str, role: str, content: str, redis: Redis) ->
     await redis.ltrim(key, 0, MAX_HISTORY_MESSAGES - 1)
 
 
-async def get_history(chat_id: str, redis: Redis) -> List[Dict]:
+async def get_history(chat_id: str, redis: Redis, limit: int = 10) -> List[Dict]:
     key = _get_redis_key(chat_id)
-    entries = await redis.lrange(key, 0, -1)
+    entries = await redis.lrange(key, -limit * 2, -1)
     return [json.loads(entry) for entry in entries]
 
 

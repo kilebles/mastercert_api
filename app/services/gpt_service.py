@@ -24,11 +24,18 @@ class OpenAIService:
             knowledge_block = f"\n\n{context}" if context else ""
 
             base_prompt = f"{self.system_prompt.strip()}{knowledge_block}"
-            messages = [{"role": "system", "content": base_prompt}]
+            messages = [
+                {"role": "system", "content": self.system_prompt.strip()},
+            ]
+            if context:
+                messages.append({"role": "system", "content": f"Полезная информация для ответа:\n{context}"})
             messages.extend(conversation)
 
             logger.warning("=== SYSTEM PROMPT ===")
-            logger.warning(base_prompt[:1000])
+            logger.warning(self.system_prompt[:1000])
+            if context:
+                logger.warning("=== CONTEXT BLOCK ===")
+                logger.warning(context[:1000])
 
             stream = await self.client.chat.completions.create(
                 model="gpt-4o",
