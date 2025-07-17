@@ -46,17 +46,22 @@ async def ask(
     user_message = data.message.strip()
     chat_id = data.chat_id.strip()
 
-    await add_to_history(chat_id, "user", user_message, redis)
-
     history = await get_history(chat_id, redis, limit=10)
+    history.append({"role": "user", "content": user_message})
+
     user_embedding = await gpt.get_embedding(user_message)
     similar_records = await search_similar_knowledge(user_embedding, db, limit=3)
+
     context = "\n\n".join(
         f"Q: {row['question']}\nA: {row['answer']}"
         for row in similar_records
     ) if similar_records else ""
 
-    logger.warning("=== REDIS HISTORY ===")
+    logger.warning("=== REDIS HISTORY BEFORE ===")
+    for m in await get_history(chat_id, redis, limit=10):
+        logger.warning(f"{m['role']}: {m['content']}")
+
+    logger.warning("=== FINAL HISTORY SENT TO GPT ===")
     for m in history:
         logger.warning(f"{m['role']}: {m['content']}")
 
@@ -71,6 +76,7 @@ async def ask(
     logger.warning("=== GPT RESPONSE ===")
     logger.warning(response_text)
 
+    await add_to_history(chat_id, "user", user_message, redis)
     await add_to_history(chat_id, "assistant", response_text, redis)
 
     return {"response": response_text}
