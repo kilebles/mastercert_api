@@ -25,6 +25,10 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     response: str
+    
+    
+class ClearRequest(BaseModel):
+    chat_id: str
 
 
 @router.get("/", response_model=dict)
@@ -73,7 +77,7 @@ async def ask(
 
 
 @router.post("/clear")
-async def clear_chat(data: AskRequest, redis=Depends(get_redis_client)):
+async def clear_chat(data: ClearRequest, redis=Depends(get_redis_client)):
     logger.info(f"Clearing Redis history for chat_id={data.chat_id}")
     await clear_history(data.chat_id, redis)
     return {"status": "ok"}
